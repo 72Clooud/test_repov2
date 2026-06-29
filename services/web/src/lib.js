@@ -1,4 +1,5 @@
 // Czysta logika frontendu — testowalna bez DOM.
+//
 
 export function formatVersion(raw) {
   return raw && raw.trim() ? raw.trim() : "dev";

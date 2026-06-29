@@ -3,43 +3,65 @@ on:
   push:
     branches:
       - main
-    tags:
-      - v*
+    pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  prepare-matrix:
+  detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.set-matrix.outputs.matrix }}
+      web: ${{ steps.filter.outputs.web }}
+      api: ${{ steps.filter.outputs.web }}
     steps:
       - name: download code
         uses: actions/checkout@v4
-      - name: read def var
-        id: set-matrix
-        run: |
-          MATRIX_JSON=$(jq -c . matrix.json)
-          echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
-        
-  tests:
-    needs: prepare-matrix
-    runs-on: ubuntu-latest 
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
-
-    steps:
-      - name: download code
-        uses: actions/checkout@v4
-      - name: node.js conf ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+      - name: path filter
+        uses: dorny/paths-filter@v3
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-          cache-dependency-path: ./services/${{ matrix.service }}/package-lock.json
-      - name: install dependencies
-        working-directory: ./services/${{ matrix.service }}
-        run: npm ci
-      - name: run tests
-        working-directory: ./services/${{ matrix.service }}
-        run: npm test
+          filters:
+            web:
+              - 'services/web/**'
+            api:
+              - 'services/api/**'
+
+    build-web:
+      needs: detect-changes
+      if: ${{ needs.detect-changes.outputs.web == 'true' }}
+      runs-on: ubuntu-latest
+      steps:
+        - name: download code
+          uses: actions/checkout@v4
+        - name: node conf
+          with:
+            node-version: 20
+            cache: 'npm'
+            cache-dependency-path: ./services/web/package-lock.json
+        - name: install dependencis
+          working-directory: ./services/web
+          run: npm ci
+        - name: build web
+          working-directory: ./services/web
+          run: npm run build
+    test-api:
+      needs: detect-changes
+      if: ${{ needs.detect-changes.outputs.api == 'true' }}
+      runs-on: ubuntu-latest
+      steps:
+        - name: download code
+          uses: actions/checkout@v4
+        - name: node conf
+          uses: actions/setup-node@v4
+          with:
+            node-version: 20
+            cache: 'npm'
+            cache-dependency-path: ./services/api/package-lock.json
+        - name: install dependencies
+          working-directory: ./services/api
+          run: npm ci
+
+        - name: Uruchomienie testów API
+          working-directory: ./services/api
+          run: npm test    
