@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-
+//
 /** Tworzy serwer HTTP. Wydzielone, by dało się testować bez stałego portu. */
 export function createApp() {
   return createServer((req, res) => {
