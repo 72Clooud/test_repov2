@@ -21,25 +21,25 @@ jobs:
           MATRIX_JSON=$(jq -c . matrix.json)
           echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
         
-tests:
-  needs: prepare-matrix
-  runs-on: ubuntu-latest 
-  strategy:
-    fail-fast: false
-    matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
+  tests:
+    needs: prepare-matrix
+    runs-on: ubuntu-latest 
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
 
-  steps:
-    - name: download code
-      uses: actions/checkout@v4
-    - name: node.js conf ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-        cache-dependency-path: ./services/${{ matrix.service }}/package-lock.json
-    - name: install dependencies
-      working_directory: ./services/${{ matrix.service }}
-      run: npm ci
-    - name: run tests
-      working-directory: ./services/${{ matrix.service }}
-      run: npm test
+    steps:
+      - name: download code
+        uses: actions/checkout@v4
+      - name: node.js conf ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: ./services/${{ matrix.service }}/package-lock.json
+      - name: install dependencies
+        working_directory: ./services/${{ matrix.service }}
+        run: npm ci
+      - name: run tests
+        working-directory: ./services/${{ matrix.service }}
+        run: npm test
