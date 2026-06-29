@@ -6,45 +6,40 @@ on:
     tags:
       - v*
 
-permissions:
-  contents: read
-  packages: write
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-publish:
+  prepare-matrix:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      - name: download repository 
+      - name: download code
         uses: actions/checkout@v4
-      - name: login into ghcr
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: generate tags and metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=sha,format=short,prefix=sha-
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=raw,value=latest,enable={{is_default_branch}}
-      - name: configure docker buildx
-        uses: docker/setup-buildx-action@v3
-      - name: build and push image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: read def var
+        id: set-matrix
+        run: |
+          MATRIX_JSON=$(jq -c . matrix.json)
+          echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
+        
+tests:
+  needs: prepare-matrix
+  runs-on: ubuntu-latest 
+  strategy:
+    fail-fast: false
+    matrix: ${{ fromJson(needs.prepare-matrix.outputs.matrix) }}
+
+  steps:
+    - name: download code
+      uses: actions/checkout@v4
+    - name: node.js conf ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: ./services/${{ matrix.service }}/package-lock.json
+    - name: install dependencies
+      working_directory: ./services/${{ matrix.service }}
+      run: npm ci
+    - name: run tests
+      working-directory: ./services/${{ matrix.service }}
+      run: npm test
