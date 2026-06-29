@@ -1,9 +1,10 @@
 name: workflow
+
 on: 
   push:
     branches:
       - main
-    pull_request:
+  pull_request:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -14,54 +15,61 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       web: ${{ steps.filter.outputs.web }}
-      api: ${{ steps.filter.outputs.web }}
+      api: ${{ steps.filter.outputs.api }} 
     steps:
       - name: download code
         uses: actions/checkout@v4
+        
       - name: path filter
+        id: filter 
         uses: dorny/paths-filter@v3
         with:
-          filters:
-            web:
-              - 'services/web/**'
-            api:
-              - 'services/api/**'
+          filters: |
+            web: 'services/web/**'
+            api: 'services/api/**'
 
-    build-web:
-      needs: detect-changes
-      if: ${{ needs.detect-changes.outputs.web == 'true' }}
-      runs-on: ubuntu-latest
-      steps:
-        - name: download code
-          uses: actions/checkout@v4
-        - name: node conf
-          with:
-            node-version: 20
-            cache: 'npm'
-            cache-dependency-path: ./services/web/package-lock.json
-        - name: install dependencis
-          working-directory: ./services/web
-          run: npm ci
-        - name: build web
-          working-directory: ./services/web
-          run: npm run build
-    test-api:
-      needs: detect-changes
-      if: ${{ needs.detect-changes.outputs.api == 'true' }}
-      runs-on: ubuntu-latest
-      steps:
-        - name: download code
-          uses: actions/checkout@v4
-        - name: node conf
-          uses: actions/setup-node@v4
-          with:
-            node-version: 20
-            cache: 'npm'
-            cache-dependency-path: ./services/api/package-lock.json
-        - name: install dependencies
-          working-directory: ./services/api
-          run: npm ci
+  build-web: 
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.web == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: download code
+        uses: actions/checkout@v4
+        
+      - name: node conf
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: ./services/web/package-lock.json
+          
+      - name: install dependencies
+        working-directory: ./services/web
+        run: npm ci
+        
+      - name: build web
+        working-directory: ./services/web
+        run: npm run build
 
-        - name: Uruchomienie testów API
-          working-directory: ./services/api
-          run: npm test    
+  test-api:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.api == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: download code
+        uses: actions/checkout@v4
+        
+      - name: node conf
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: ./services/api/package-lock.json
+          
+      - name: install dependencies
+        working-directory: ./services/api
+        run: npm ci
+
+      - name: Uruchomienie testów API
+        working-directory: ./services/api
+        run: npm test
